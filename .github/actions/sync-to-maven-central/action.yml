@@ -7,15 +7,13 @@ inputs:
   spring-retry-version:
     description: 'The version of Spring Retry that is being synced to Central'
     required: true
-  ossrh-s01-token-username:
-    description: 'Username for authentication with s01.oss.sonatype.org'
+  central-token-username:
+    description: 'Token name for authentication with the Central Portal'
     required: true
-  ossrh-s01-token-password:
-    description: 'Password for authentication with s01.oss.sonatype.org'
+  central-token:
+    description: 'Token for authentication with the Central Portal'
     required: true
-  ossrh-s01-staging-profile:
-    description: 'Staging profile to use when syncing to Central'
-    required: true
+
 runs:
   using: composite
   steps:
@@ -23,28 +21,14 @@ runs:
       uses: jfrog/setup-jfrog-cli@7c95feb32008765e1b4e626b078dfd897c4340ad # v4.1.2
       env:
         JF_ENV_SPRING: ${{ inputs.jfrog-cli-config-token }}
+
     - name: Download Release Artifacts
       shell: bash
       run: jf rt download --spec ${{ format('{0}/artifacts.spec', github.action_path) }} --spec-vars 'buildName=${{ format('spring-retry-{0}', inputs.spring-retry-version) }};buildNumber=${{ github.run_number }}'
-    - name: Sync
-      uses: spring-io/nexus-sync-action@42477a2230a2f694f9eaa4643fa9e76b99b7ab84 # v0.0.1
+
+    - name: Deploy Bundle to Maven Central Portal
+      uses: spring-io/central-publish-action@v0.3.0
       with:
-        username: ${{ inputs.ossrh-s01-token-username }}
-        password: ${{ inputs.ossrh-s01-token-password }}
-        staging-profile-name: ${{ inputs.ossrh-s01-staging-profile }}
-        create: true
-        upload: true
-        close: true
-        release: true
-        generate-checksums: true
-    - name: Await
-      shell: bash
-      run: |
-        url=${{ format('https://repo.maven.apache.org/maven2/org/springframework/retry/spring-retry/{0}/spring-retry-{0}.jar', inputs.spring-retry-version) }}
-        echo "Waiting for $url"
-        until curl --fail --head --silent $url > /dev/null
-        do
-          echo "."
-          sleep 60
-        done
-        echo "$url is available"
+        token-name: ${{ inputs.central-token-username }}
+        token: ${{ inputs.central-token }}
+        dir: central_bundle
